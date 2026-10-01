@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Energy Hub BLE Control</title>
+  <style>
+    body { font-family: sans-serif; text-align: center; padding: 40px; background: #121212; color: #fff; }
+    button { padding: 15px 30px; font-size: 18px; margin: 10px; border-radius: 8px; border: none; cursor: pointer; }
+    .btn-on { background: #4CAF50; color: white; }
+    .btn-off { background: #f44336; color: white; }
+    .btn-conn { background: #2196F3; color: white; }
+    #status { font-weight: bold; color: #ff9800; margin-top: 20px; }
+  </style>
+</head>
+<body>
+
+  <h1>Energy Hub Control</h1>
+  <button class="btn-conn" onclick="connectBLE()">Connect to Energy Hub</button>
+  <br><br>
+  <button class="btn-on" onclick="sendLED('1')">Turn LED ON</button>
+  <button class="btn-off" onclick="sendLED('0')">Turn LED OFF</button>
+
+  <div id="status">Status: Disconnected</div>
+
+  <script>
+    const SERVICE_UUID        = "4fa8c001-11f1-4a3f-9105-0d078c359c60";
+    const CHARACTERISTIC_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
+
+    let ledCharacteristic = null;
+
+    async function connectBLE() {
+      try {
+        document.getElementById('status').innerText = "Requesting BLE Device...";
+        
+        // 1. Prompt browser to show the Bluetooth device picker
+        const device = await navigator.bluetooth.requestDevice({
+          filters: [{ name: 'Energy Hub' }],
+          optionalServices: [SERVICE_UUID]
+        });
+
+        document.getElementById('status').innerText = "Connecting to GATT Server...";
+        const server = await device.gatt.connect();
+
+        // 2. Get the Service & Characteristic
+        const service = await server.getPrimaryService(SERVICE_UUID);
+        ledCharacteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
+
+        document.getElementById('status').innerText = "Status: Connected!";
+        document.getElementById('status').style.color = "#4CAF50";
+
+      } catch (error) {
+        console.error(error);
+        document.getElementById('status').innerText = "Connection Failed: " + error;
+        document.getElementById('status').style.color = "#f44336";
+      }
+    }
+
+    async function sendLED(value) {
+      if (!ledCharacteristic) {
+        alert("Please connect to BLE first!");
+        return;
+      }
+      // Send UTF-8 text string "1" or "0" to the ESP32
+      const encoder = new TextEncoder();
+      await ledCharacteristic.writeValue(encoder.encode(value));
+    }
+  </script>
+</body>
+</html>
